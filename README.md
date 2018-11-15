@@ -6,6 +6,8 @@ Working with the file-system is too verbose. Let's make it more like JQuery
 This is a port / adaptation of the Python library : [https://github.com/interstar/fsquery](https://github.com/interstar/fsquery)
 
 
+[![Clojars Project](https://img.shields.io/clojars/v/fsquery.svg)](https://clojars.org/fsquery)
+
 ## Usage
 
 We create an FSQuery record using `make-fsquery` and the path as argument.
