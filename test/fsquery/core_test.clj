@@ -108,10 +108,9 @@
 
 (deftest dirs
   (testing "dirs only"
-    (let [fsq (-> (make-fsquery "./")
+    (let [fsq (-> (make-fsquery "play")
                   (dirs-only)
-                  (no-follow #"\.git\/")
-                  (no-follow #"target\/"))]
+                  (no-follow #"A/"))]
 
       (doseq [x (start-walk fsq)]
         (println (:abs x))))))

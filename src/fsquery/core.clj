@@ -1,13 +1,10 @@
 (ns fsquery.core
   (:require
    [clojure.java.io :as io]
-
    [clojure.spec.alpha :as s]
    [clojure.spec.test.alpha :as stest]
    [clojure.string :as str]
-
    ))
-
 
 
 ;; ____ FSNode ____________________________________________________________________
