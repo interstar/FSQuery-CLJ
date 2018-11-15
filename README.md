@@ -3,11 +3,12 @@
 
 Working with the file-system is too verbose. Let's make it more like JQuery
 
+This is a port / adaptation of the Python library : [https://github.com/interstar/fsquery](https://github.com/interstar/fsquery)
 
 
 ## Usage
 
-We creat an FSQuery record using `make-fsquery` and the path as argument.
+We create an FSQuery record using `make-fsquery` and the path as argument.
 
 We can then attach various further predicates and modifiers to it.
 
