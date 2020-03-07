@@ -3,63 +3,10 @@
    [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
    [clojure.spec.test.alpha :as stest]
-   [clojure.string :as str]
+   [clojure.string :as string]
+   [fsquery.fsnode :as fsnode]
    ))
 
-
-;; ____ FSNode ____________________________________________________________________
-(s/def ::java-file #(instance? java.io.File % ))
-(s/def ::abs string?)
-(s/def ::root string?)
-(s/def ::depth number?)
-
-(s/def ::FSNode (s/keys :req-un [::abs ::depth ::root ::java-file]) )
-
-(defn make-fsnode [abs root depth]
-  {:abs abs :root root :depth depth :java-file (io/file abs)})
-
-(s/fdef make-fsnode :ret ::FSNode)
-(stest/instrument `make-fsnode)
-
-(defn is-dir? [{:keys [abs root depth java-file]}]
-  (.isDirectory  java-file))
-
-
-(defn children [{:keys [abs root depth java-file] :as fsnode}]
-  (if (is-dir? fsnode)
-    (map #(make-fsnode (.getAbsolutePath %) root (+ depth 1) ) (.listFiles java-file))
-    []))
-
-(defn has-child? [fsnode p]
-  (if (some true? (map p (children fsnode))) true false))
-
-
-(defn slurp-it [fsnode] (slurp (:abs fsnode)))
-(defn spit-it [fsnode s] (spit (:abs fsnode) s))
-
-(defn contains? [fsnode pattern]
-  (let [s (slurp-it fsnode)]
-    (if (nil? (re-find pattern s)) false true)))
-
-(defn file-object [fsnode] (:java-file fsnode))
-
-(declare make-fsquery)
-(defn spawn-query [{:keys [abs root depth java-file]}] (make-fsquery abs))
-
-(defn has-child-named? [node name]
-  (let [name-last? (fn [child]
-                       (= (-> child
-                              :abs
-                              (#(str/split % #"/"))
-                              last)
-                          name
-                          ))
-
-          ]
-      (and
-       (is-dir? node)
-       (has-child? node name-last?)
-       )))
 
 ;; ____ FSQuery __________________________________________________________________
 
@@ -73,8 +20,10 @@
 (s/def ::FSQuery (s/keys :req-un [::init-path ::dir-preds
                                   ::file-preds ::return-criteria]))
 
+
+
 (defn make-fsquery [path]
-  {:init-path path
+  {:init-path (-> path io/file .getAbsolutePath)
    :dir-preds []
    :file-preds []
    :return-criteria []}
@@ -102,6 +51,8 @@
   (add-pred fsquery :return-criteria p))
 
 
+
+
 (defn dir-tests [fsquery]
   (let [f (fn [n]
             {:pre (s/valid? ::FSNode n)}
@@ -126,13 +77,13 @@
 (defn start-walk [{:keys [init-path dir-preds file-preds return-criteria]
                    :as fsquery} ]
   (letfn [ (walk [depth fsnode]
-               (let [dir-children (->> (children fsnode)
-                                       (filter is-dir?)
+               (let [dir-children (->> (fsnode/children fsnode)
+                                       (filter fsnode/is-dir?)
                                        (filter #(not ((dir-tests fsquery) %))))
 
                      file-children (filter (file-tests fsquery)
-                                    (filter #(not (is-dir? %))
-                                            (children fsnode))) ]
+                                    (filter #(not (fsnode/is-dir? %))
+                                            (fsnode/children fsnode))) ]
                  (filter #((return-tests fsquery) %)
                          (lazy-cat [fsnode]
                                    (apply concat
@@ -144,25 +95,25 @@
                                      #(walk (inc depth) %)
                                      dir-children)) ))
                  ))]
-    (walk 0 (make-fsnode init-path init-path 0))))
+    (walk 0 (fsnode/make init-path init-path 0))))
 
-
+(defn walk-each [fsq] (start-walk fsq))
 
 
 ;; Standard features
 ;; __________________________________________________________________________
 
 (defn files-only [fsquery]
-  (add-return-criteria fsquery #(not (is-dir? %))))
+  (add-return-criteria fsquery #(not (fsnode/is-dir? %))))
 
 (defn dirs-only [fsquery]
-  (add-return-criteria fsquery #(is-dir? %)))
+  (add-return-criteria fsquery #(fsnode/is-dir? %)))
 
 (defn no-follow [fsquery pattern]
-  (add-dir-pred fsquery #(if (re-find (re-pattern pattern) (:abs %)) true false )))
+  (add-dir-pred fsquery #(if (re-find (re-pattern pattern) (fsnode/abs %)) true false )))
 
 (defn match [fsquery pattern]
-  (add-file-pred fsquery #(if (re-find (re-pattern pattern) (:abs %)) true false)))
+  (add-file-pred fsquery #(if (re-find (re-pattern pattern) (fsnode/abs %)) true false)))
 
 (defn ext [fsquery s]
   (match fsquery (re-pattern (str s "$"))))
@@ -171,3 +122,9 @@
 (defn file-contains [fsquery pattern]
   (add-file-pred fsquery #(contains? % (re-pattern pattern)))
   )
+
+
+;;  Extra functionality for nodes
+;; Spawn a new fsquery
+
+(defn spawn-query [{:keys [ root depth java-file]}] (make-fsquery (-> java-file fsnode/abs)))
