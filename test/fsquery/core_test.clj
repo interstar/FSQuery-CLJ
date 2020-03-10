@@ -106,12 +106,9 @@
                         (no-follow #"BB")
                         )
                 noroot (map #(subs % 5) (fsnode/list->paths ds2))
-                d2 (println ">>:>> " (str fsq))
-                dummy
-                (doseq [n (fsquery/walk-each fsq)]
-                  (println ">>:> " (fsnode/relative n)))
+
                 res (map #(fsnode/relative %) (fsquery/walk-each fsq))]
-            (println "JJJEEE " (apply str (map fsnode/relative (fsquery/walk-each fsq))))
+
             (is (= res noroot))
             )))
 
@@ -149,13 +146,6 @@
             fsq9 (-> fsq6 (ext "out"))
             fsq10 (-> fsq6 (file-contains "cruel"))
             ]
-
-        (testing "walking "
-          (deftest walking
-            (doseq [x (start-walk fsq)]
-              (println "--> " (:abs x))
-              ))
-          )
 
 
         (testing "Dir Preds"
