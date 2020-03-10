@@ -33,7 +33,8 @@
 
 
 (defn relative [{:keys [java-file root] :as node} ]
-  (string/replace (-> node :abs) root ""))
+  (let [r (string/replace (-> node :abs) root "")]
+    (if (> (count r) 1) (subs r 1) r)))
 
 (defn file-name [{:keys [java-file]}]
   (.getName java-file))

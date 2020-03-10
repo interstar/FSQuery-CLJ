@@ -110,10 +110,10 @@
   (add-return-criteria fsquery #(fsnode/is-dir? %)))
 
 (defn no-follow [fsquery pattern]
-  (add-dir-pred fsquery #(if (re-find (re-pattern pattern) (:abs %)) true false )))
+  (add-dir-pred fsquery #(if (re-find (re-pattern pattern) (fsnode/relative %)) true false )))
 
 (defn match [fsquery pattern]
-  (add-file-pred fsquery #(if (re-find (re-pattern pattern) (:abs %)) true false)))
+  (add-file-pred fsquery #(if (re-find (re-pattern pattern) (fsnode/relative %)) true false)))
 
 (defn ext [fsquery s]
   (match fsquery (re-pattern (str s "$"))))
