@@ -1,4 +1,4 @@
-1
+
 # FSQuery (File System Query)
 
 Working with the file-system is too verbose. Let's make it more like JQuery
@@ -32,7 +32,7 @@ Finally we use `start-walk` to create a lazy sequence of the FSNodes mateched by
 
 ## License
 
-Copyright © 2018 Phil Jones
+Copyright © 2018-2020 Phil Jones
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
