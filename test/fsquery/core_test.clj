@@ -76,7 +76,24 @@
            "play/old/b/ANOTHER FAMILY"
            "play/old/b/NEW FAMILY"
            ]
-          ]
+          ds3
+          [
+           "play/file.md"
+           "play/A/a/a.txt"
+           "play/A/a/b.txt"
+           "play/BB/cc/c.out"
+           "play/old/a/x/data.txt"
+           "play/old/a/x/test.html"
+           "play/old/a/y/data.txt"
+           "play/old/b/NEW FAMILY/data.text"
+           ]
+          ds4
+          [
+           "play/A/a/a.txt"
+           "play/A/a/b.txt"
+           "play/old/a/x/data.txt"
+           "play/old/a/y/data.txt"
+           ]]
       (fsnode/list-to-dir!! "./play/" ds)
 
       (deftest one-node
@@ -98,6 +115,30 @@
                 res (map #(fsnode/relative %) (fsquery/walk-each fsq))
                 noroot (map #(subs % 5) (fsnode/list->paths ds))]
             (is (= res noroot)))))
+
+      (deftest file-only
+        (testing "Files only"
+          (let [fsq (-> (make-fsquery "play")
+                        (files-only))
+                res (map #(fsnode/relative %) (fsquery/walk-each fsq))
+                noroot (map #(subs % 5) (fsnode/list->paths ds3))]
+            (is (= res noroot))
+            ) ))
+
+      (deftest matching
+        (testing "Match in file-name"
+          (let [fsq (-> (make-fsquery "play")
+                        (files-only)
+                        (match ".txt"))
+                res (map #(fsnode/relative %) (fsquery/walk-each fsq))
+                fsq2 (-> (make-fsquery "play")
+                         (ext "txt")
+                         (files-only))
+                res2 (map #(fsnode/relative %) (fsquery/walk-each fsq2))
+                noroot (map #(subs % 5) (fsnode/list->paths ds4))]
+            (is (= res noroot))
+            (is (= res2 noroot ))))
+        )
 
       (deftest dirs
         (testing "dirs only"
