@@ -2,18 +2,19 @@
   (:require [clojure.test :refer :all]
             [fsquery.fsnode :as fsnode]
             [fsquery.core :refer [make-fsquery
-                                   add-file-pred
-                                   add-return-criteria add-dir-pred
-                                   files-only no-follow match
-                                   ext file-contains
-                                   dirs-only
+                                  add-file-pred
+                                  add-return-criteria add-dir-pred
+                                  files-only no-follow match
+                                  ext file-contains
+                                  dirs-only
                                   start-walk dir-tests file-tests]
              :as fsquery]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [clojure.java.shell :refer [sh]]
             [pathetic.core :as pathetic]
-            ))
+
+            [clojure.java.io :as io]))
 
 
 
@@ -22,7 +23,7 @@
 (deftest fsnode-test
   (testing "FSNode"
     (is (s/valid? ::fsnode/FSNode (fsnode/make "/" "/" 0)))
-    (is (true? (fsnode/has-child? (fsnode/make "/" "/" 0) #(= "/tmp" (fsnode/abs %)))))
+    (is (true? (fsnode/has-child? (fsnode/make "/" "/" 0) #(= "/tmp" (:abs %)))))
 
     )
   )
@@ -40,6 +41,7 @@
     (let [ds
           [
            "play/"
+           ["play/file.md" "Boo!"]
            "play/A"
            "play/A/a"
            ["play/A/a/a.txt" "this is a.txt"]
@@ -59,24 +61,59 @@
            "play/old/b/ANOTHER FAMILY"
            "play/old/b/NEW FAMILY"
            ["play/old/b/NEW FAMILY/data.text" "this is yet more data.text"]
-           ]]
-      (fsnode/list-to-dir!! "./play" ds)
+           ]
+
+          ds2
+          [
+           "play/"
+           "play/B"
+           "play/B/cc"
+           "play/B/dd"
+           "play/old"
+           "play/old/a"
+           "play/old/a/x"
+           "play/old/a/y"
+           "play/old/b"
+           "play/old/b/ANOTHER FAMILY"
+           "play/old/b/NEW FAMILY"
+           ]
+          ]
+      (fsnode/list-to-dir!! "./play/" ds)
+
+      (deftest one-node
+        (testing "one-node"
+          (let [node (fsnode/make "play/old/b/NEW FAMILY/data.text"
+                                  (-> "play" io/file .getAbsolutePath) 0)]
+            (is (true? (fsnode/contains? node  #"data")) )
+            (is (false? (fsnode/contains? node #"atoms")) )
+            (is (false? (fsnode/is-dir? node)))
+            (is (= (fsnode/slurp-it node) "this is yet more data.text"))
+
+            (is (= (fsnode/relative node) "/old/b/NEW FAMILY/data.text"))
+            )))
 
       (deftest test-crawl
         (testing "test-crawl"
           (let [
                 fsq (make-fsquery "play")
-                res (map #(fsnode/relative %) (fsquery/walk-each fsq))]
-            (is (= res ds)))))
+                res (map #(fsnode/relative %) (fsquery/walk-each fsq))
+                noroot (map #(subs % 5) (fsnode/list->paths ds))]
+            (is (= res noroot)))))
 
       (deftest dirs
         (testing "dirs only"
           (let [fsq (-> (make-fsquery "play")
                         (dirs-only)
-                        (no-follow #"A/"))]
-
-            (doseq [x (start-walk fsq)]
-              (println "?? " (fsnode/abs x))))))
+                        (no-follow #"A/")
+                        )
+                d2 (println ">>:>> " (str fsq))
+                dummy
+                (doseq [n (fsquery/walk-each fsq)]
+                  (println ">>:> " (fsnode/relative n)))
+                res (map #(fsnode/relative %) (fsquery/walk-each fsq))]
+            (println "JJJEEE " (apply str (map fsnode/relative (fsquery/walk-each fsq))))
+            (is (= res ds2))
+            )))
 
 
 
@@ -102,12 +139,12 @@
           (testing "Go"
             (let [
                   fsq (make-fsquery "./play")
-                  fsq2 (-> fsq (add-dir-pred #(.contains (fsnode/abs %) "B")))
+                  fsq2 (-> fsq (add-dir-pred #(.contains (:abs %) "B")))
                   fsq3 (-> fsq
-                           (add-dir-pred #(.contains (fsnode/abs %) "cc"))
-                           (add-dir-pred #(.contains (fsnode/abs %) "dd"))
+                           (add-dir-pred #(.contains (:abs %) "cc"))
+                           (add-dir-pred #(.contains (:abs %) "dd"))
                            )
-                  fsq4 (-> fsq (add-file-pred #(.contains (fsnode/abs %) ".out")))
+                  fsq4 (-> fsq (add-file-pred #(.contains (:abs %) ".out")))
                   fsq5 (-> fsq4 (add-return-criteria #(not (fsnode/is-dir? %))))
                   fsq6 (-> fsq files-only)
                   fsq7 (-> fsq6 (no-follow "B"))
@@ -116,59 +153,43 @@
                   fsq10 (-> fsq6 (file-contains "cruel"))
                   ]
               (doseq [x (start-walk fsq)]
-                (println "--> " (fsnode/abs x))
+                (println "--> " (:abs x))
                 )
 
-              (is (= false ((dir-tests fsq2) {fsnode/abs "abc"})) )
-              (is (= true ((dir-tests fsq2) {fsnode/abs "aBc"})))
+              (is (= false ((dir-tests fsq2) {:abs "abc"})) )
+              (is (= true ((dir-tests fsq2) {:abs "aBc"})))
               (doseq [x (start-walk fsq2)]
-                (println "++> " (fsnode/abs x)))
+                (println "++> " (:abs x)))
               (doseq [x (start-walk fsq3)]
-                (println "__> " (fsnode/abs x)))
+                (println "__> " (:abs x)))
 
-              (is (= false ((file-tests fsq4) {fsnode/abs "abc.txt"})) )
-              (is (= true ((file-tests fsq2) {fsnode/abs "aBc.out"})))
+              (is (= false ((file-tests fsq4) {:abs "abc.txt"})) )
+              (is (= true ((file-tests fsq2) {:abs "aBc.out"})))
 
               (doseq [x (start-walk fsq4)]
-                (println "^^> " (fsnode/abs x)))
+                (println "^^> " (:abs x)))
 
               (doseq [x (start-walk fsq5)]
-                (println "..> " (fsnode/abs x)))
+                (println "..> " (:abs x)))
 
               (doseq [x (start-walk fsq6)]
-                (println "((> " (fsnode/abs x)))
+                (println "((> " (:abs x)))
 
               (doseq [x (start-walk fsq7)]
-                (println "))> " (fsnode/abs x)))
+                (println "))> " (:abs x)))
 
               (doseq [x (start-walk fsq8)]
-                (println "==> " (fsnode/abs x)))
+                (println "==> " (:abs x)))
 
               (doseq [x (start-walk fsq9)]
-                (println "=+> " (fsnode/abs x)))
+                (println "=+> " (:abs x)))
 
               (doseq [x (start-walk fsq10)]
-                (println "0+> " (fsnode/abs x)))
+                (println "0+> " (:abs x)))
 
               ))))
 
-      (comment
-        (deftest showfiles
-          (testing "quick grep"
-            (let [fsq (->
-                       (make-fsquery "./")
-                       (ext "clj")
-                       files-only)]
-              (doseq [x (start-walk fsq)]
 
-                (println "------------------------------------------")
-                (println (fsnode/abs x))
-                (println "------------------------------------------")
-                (let [s (fsnode/slurp-it x)]
-                  (doseq [y (string/split-lines s)]
-                    (println y))))
-              ))
-          ))
 
       )
     )

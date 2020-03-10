@@ -110,10 +110,10 @@
   (add-return-criteria fsquery #(fsnode/is-dir? %)))
 
 (defn no-follow [fsquery pattern]
-  (add-dir-pred fsquery #(if (re-find (re-pattern pattern) (fsnode/abs %)) true false )))
+  (add-dir-pred fsquery #(if (re-find (re-pattern pattern) (:abs %)) true false )))
 
 (defn match [fsquery pattern]
-  (add-file-pred fsquery #(if (re-find (re-pattern pattern) (fsnode/abs %)) true false)))
+  (add-file-pred fsquery #(if (re-find (re-pattern pattern) (:abs %)) true false)))
 
 (defn ext [fsquery s]
   (match fsquery (re-pattern (str s "$"))))
@@ -127,4 +127,4 @@
 ;;  Extra functionality for nodes
 ;; Spawn a new fsquery
 
-(defn spawn-query [{:keys [ root depth java-file]}] (make-fsquery (-> java-file fsnode/abs)))
+(defn spawn-query [{:keys [ root depth java-file]}] (make-fsquery (-> java-file :abs)))

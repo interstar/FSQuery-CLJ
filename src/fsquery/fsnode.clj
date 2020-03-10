@@ -22,19 +22,18 @@
   )
 
 (defn make [abs root depth]
-  {:java-file (io/file abs)
-   :root root
-   :depth depth})
+  (let [jfile (io/file abs)]
+    {:java-file jfile
+     :root root
+     :depth depth
+     :abs (-> jfile .getAbsolutePath clean-path) }))
 
 (s/fdef make :ret ::FSNode)
 (stest/instrument `make)
 
 
-(defn abs [{:keys [java-file]}]
-  (-> java-file .getAbsolutePath clean-path))
-
 (defn relative [{:keys [java-file root] :as node} ]
-  (string/replace (-> node abs) root ""))
+  (string/replace (-> node :abs) root ""))
 
 (defn file-name [{:keys [java-file]}]
   (.getName java-file))
@@ -55,8 +54,8 @@
   (if (some true? (map p (children fsnode))) true false))
 
 
-(defn slurp-it [node] (slurp (abs node)))
-(defn spit-it [node s] (spit (abs node) s))
+(defn slurp-it [node] (slurp (:abs node)))
+(defn spit-it [node s] (spit (:abs node) s))
 
 (defn contains? [fsnode pattern]
   (let [s (slurp-it fsnode)]
@@ -81,15 +80,30 @@
        )))
 
 
+;; File Listst
+
+;; have the form
+
+;; [
+;; "path"
+;; "path/path"
+;; ["path-to-file" "file-content"]
+;; "path2/extra"
+;; etc.
+;; ]
+
+
 (defn list-to-dir!! [root xs]
+  "Write a file list as a directory. Dangerous because it starts by removing root"
   (do
     (sh "rm" "-r" root)
     (doseq [x xs]
-      (println "WWWW " x)
       (if (vector? x)
         (let [[fname cont] x]
-          (println "IS VECTOR '" fname "' ::: '" cont "'")
           (spit fname cont))
         (sh "mkdir" "-p" x))
       )
     ))
+
+(defn list->paths [xs]
+  (map #(if (vector? %) (first %) %) xs ))

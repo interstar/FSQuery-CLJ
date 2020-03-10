@@ -1,4 +1,4 @@
-
+1
 # FSQuery (File System Query)
 
 Working with the file-system is too verbose. Let's make it more like JQuery
